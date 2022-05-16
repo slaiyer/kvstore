@@ -1,0 +1,4 @@
+SET abc-1 1
+SET abc-2 2
+SET xyz-1 3
+SET xyz-2 4

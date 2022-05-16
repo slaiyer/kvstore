@@ -5,7 +5,9 @@
 from flask import Flask, jsonify, make_response, request, Response
 from http import HTTPStatus
 import logging
+import os
 import re
+import redis
 import sys
 
 APP = Flask(__name__)
@@ -17,32 +19,31 @@ logging.basicConfig(
 )
 LOG = logging.getLogger(__name__)
 
-VALID_CHARSET = re.compile("[a-z-0-9]+")
+REDIS_HOST = os.getenv("REDIS_SERVICE_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_SERVICE_PORT", "6379")
+REDIS = redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), decode_responses=True)
+LOG.info("redis host ping success: %s", REDIS.ping())
 
-KV = {}
+VALID_CHARSET = re.compile("[a-z-0-9]+")
 
 
 @APP.route("/set", methods=["POST"])
 def set() -> Response:
     """Handler for setting KV pair."""
     key = request.form.get("key")
-    if not is_valid_string(key):
+    if key is None or not is_valid_string(key):
         msg = f"invalid key {key!r}"
         return json_response(msg, HTTPStatus.BAD_REQUEST)
 
     value = request.form.get("value")
-    if not is_valid_string(value):
+    if value is None or not is_valid_string(value):
         msg = f"invalid value {value!r}"
         return json_response(msg, HTTPStatus.BAD_REQUEST)
 
-    if key not in KV:
-        KV[key] = value
+    if (old_value := REDIS.set(key, value, get=True)) is None:
         action, code = 'created', HTTPStatus.CREATED
-    elif KV[key] != value:
-        KV[key] = value
-        action, code = 'updated', HTTPStatus.NO_CONTENT
     else:
-        action, code = 'unchanged', HTTPStatus.NOT_MODIFIED
+        action, code = 'updated', HTTPStatus.OK
 
     msg = f"{action} key:value {key!r}:{value!r}"
     return json_response(msg, code)
@@ -51,11 +52,11 @@ def set() -> Response:
 @APP.route("/get/<string:key>")
 def get(key: str) -> Response:
     """Handler for getting value for given key."""
-    if not is_valid_string(key):
+    if key is None or not is_valid_string(key):
         msg = f"invalid key {key!r}"
         return json_response(msg, HTTPStatus.BAD_REQUEST)
     
-    if value := KV.get(key) is None:
+    if (value := REDIS.get(key)) is None:
         msg = f"key not found {key!r}"
         return json_response(msg, HTTPStatus.NOT_FOUND)
     else:
@@ -67,6 +68,8 @@ def search() -> Response:
     """Handler for searching keys by prefix and/or suffix."""
     prefix = request.args.get("prefix")
     suffix = request.args.get("suffix")
+
+    # BEGIN INPUT VALIDATION
 
     if prefix is None and suffix is None:
         return json_response("no search params", HTTPStatus.BAD_REQUEST)
@@ -93,20 +96,19 @@ def search() -> Response:
     if not (do_prefix or do_suffix):
         return json_response(msg, HTTPStatus.BAD_REQUEST)
 
+    # END INPUT VALIDATION
+
     results = {}
-
+    pfx_list = []
+    sfx_list = []
+    for key in REDIS.scan_iter():
+        if do_prefix and key.startswith(prefix):
+            pfx_list.append(key)
+        if do_suffix and key.endswith(suffix):
+            sfx_list.append(key)
     if do_prefix:
-        pfx_list = []
-        for key in KV:
-            if key.startswith(prefix):
-                pfx_list.append(key)
         results["prefix"] = pfx_list
-
     if do_suffix:
-        sfx_list = []
-        for key in KV:
-            if key.endswith(suffix):
-                sfx_list.append(key)
         results["suffix"] = sfx_list
 
     response: dict[str, object] = {}
