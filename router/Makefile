@@ -10,5 +10,11 @@ endif
 install:
 	${SHELL} dep-update.sh ${DIR}
 
+gunicorn-local:
+	cd src && . venv/bin/activate && gunicorn -b localhost:5000 router:APP
+
+prom-local:
+	watch -d -x curl -s 'localhost:5000/metrics'
+
 test:
 	PYTHONPATH=src ${PYTHON} -m unittest discover -s test

@@ -4,6 +4,7 @@
 
 from flask import Flask, jsonify, make_response, request, Response
 from http import HTTPStatus
+from prometheus_flask_exporter import PrometheusMetrics
 import logging
 import os
 import re
@@ -11,6 +12,7 @@ import redis
 import sys
 
 APP = Flask(__name__)
+METRICS = PrometheusMetrics(APP, group_by="endpoint")
 
 logging.basicConfig(
         stream=sys.stdout,
@@ -50,6 +52,10 @@ def set() -> Response:
 
 
 @APP.route("/get/<string:key>")
+#@METRICS.gauge(
+#    "num_keys_gauge", "Number of keys in Redis",
+#    labels={"num_keys": lambda: REDIS.dbsize()}
+#)
 def get(key: str) -> Response:
     """Handler for getting value for given key."""
     if key is None or not is_valid_string(key):
@@ -129,6 +135,14 @@ def is_valid_string(input: str) -> bool:
 def json_response(msg: str, code: int) -> Response:
     """Wrapper for creating JSON response with status code."""
     return make_response(jsonify({"msg": msg}), code)
+
+
+METRICS.register_default(
+    METRICS.gauge(
+        "num_keys_gauge", "Number of keys in Redis",
+        labels={"num_keys": lambda: REDIS.dbsize()}
+    )
+)
 
 
 if __name__ == "__main__":

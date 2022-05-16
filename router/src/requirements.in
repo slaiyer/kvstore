@@ -1,2 +1,6 @@
 flask
+gunicorn
+prometheus-flask-exporter
 redis
+types-flask
+types-redis
