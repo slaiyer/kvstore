@@ -12,7 +12,11 @@ import redis
 import sys
 
 APP = Flask(__name__)
-METRICS = PrometheusMetrics(APP, group_by="endpoint")
+METRICS = PrometheusMetrics(
+        APP,
+        group_by="endpoint",
+        default_latency_as_histogram=False,
+)
 
 logging.basicConfig(
         stream=sys.stdout,
