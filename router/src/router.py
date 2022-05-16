@@ -56,10 +56,6 @@ def set() -> Response:
 
 
 @APP.route("/get/<string:key>")
-#@METRICS.gauge(
-#    "num_keys_gauge", "Number of keys in Redis",
-#    labels={"num_keys": lambda: REDIS.dbsize()}
-#)
 def get(key: str) -> Response:
     """Handler for getting value for given key."""
     if key is None or not is_valid_string(key):
@@ -145,7 +141,7 @@ METRICS.register_default(
     METRICS.gauge(
         "num_keys_gauge", "Number of keys in Redis",
         labels={"num_keys": lambda: REDIS.dbsize()}
-    )
+    ),
 )
 
 
