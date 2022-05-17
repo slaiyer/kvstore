@@ -25,8 +25,8 @@ local-redis-kvstore:
 	-docker network create -d bridge redisnet
 	-docker run --rm -d -p 6379:6379 --name redis --network redisnet redis
 
-local-router: local-redis-kvstore
-	docker run --rm -p 8000:8000 -e "REDIS_SERVICE_HOST=$(shell ${SHELL} local-ip.sh redis)" --name router --network redisnet router
+local-router: build-docker local-redis-kvstore
+	docker run --rm -p 8000:8000 -e "REDIS_RW_HOST=$(shell ${SHELL} local-ip.sh redis)" --name router --network redisnet router
 
 gunicorn-local:
 	cd src && . venv/bin/activate && gunicorn -b localhost:5000 router:APP

@@ -25,10 +25,28 @@ logging.basicConfig(
 )
 LOG = logging.getLogger(__name__)
 
-REDIS_HOST = os.getenv("REDIS_SERVICE_HOST", "localhost")
-REDIS_PORT = os.getenv("REDIS_SERVICE_PORT", "6379")
-REDIS = redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), decode_responses=True)
-LOG.info("redis host ping success: %s", REDIS.ping())
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_RW_HOST = os.getenv("REDIS_RW_HOST", "localhost")
+REDIS_RW_PORT = os.getenv("REDIS_RW_PORT", "6379")
+REDIS_RW = redis.Redis(
+        host=REDIS_RW_HOST,
+        port=int(REDIS_RW_PORT),
+        password=REDIS_PASSWORD,
+        decode_responses=True,
+)
+LOG.info("redis rw host ping success: %s", REDIS_RW.ping())
+REDIS_RO_HOST = os.getenv("REDIS_RO_HOST", REDIS_RW_HOST)
+REDIS_RO_PORT = os.getenv("REDIS_RO_PORT", REDIS_RW_PORT)
+if REDIS_RO_HOST == REDIS_RW_HOST and REDIS_RO_PORT == REDIS_RW_PORT:
+    REDIS_RO = REDIS_RW
+else:
+    REDIS_RO = redis.Redis(
+            host=REDIS_RO_HOST,
+            port=int(REDIS_RO_PORT),
+            password=REDIS_PASSWORD,
+            decode_responses=True,
+    )
+    LOG.info("redis ro host ping success: %s", REDIS_RO.ping())
 
 VALID_CHARSET = re.compile("[a-z-0-9]+")
 
@@ -46,7 +64,7 @@ def set() -> Response:
         msg = f"invalid value {value!r}"
         return json_response(msg, HTTPStatus.BAD_REQUEST)
 
-    if (old_value := REDIS.set(key, value, get=True)) is None:
+    if (old_value := REDIS_RW.set(key, value, get=True)) is None:
         action, code = 'created', HTTPStatus.CREATED
     else:
         action, code = 'updated', HTTPStatus.OK
@@ -62,7 +80,7 @@ def get(key: str) -> Response:
         msg = f"invalid key {key!r}"
         return json_response(msg, HTTPStatus.BAD_REQUEST)
     
-    if (value := REDIS.get(key)) is None:
+    if (value := REDIS_RO.get(key)) is None:
         msg = f"key not found {key!r}"
         return json_response(msg, HTTPStatus.NOT_FOUND)
     else:
@@ -107,7 +125,7 @@ def search() -> Response:
     results = {}
     pfx_list = []
     sfx_list = []
-    for key in REDIS.scan_iter():
+    for key in REDIS_RO.scan_iter():
         if do_prefix and key.startswith(prefix):
             pfx_list.append(key)
         if do_suffix and key.endswith(suffix):
@@ -140,6 +158,6 @@ def json_response(msg: str, code: int) -> Response:
 METRICS.register_default(
     METRICS.gauge(
         "num_keys_gauge", "Number of keys in Redis",
-        labels={"num_keys": lambda: REDIS.dbsize()}
+        labels={"num_keys": lambda: REDIS_RO.dbsize()}
     ),
 )
