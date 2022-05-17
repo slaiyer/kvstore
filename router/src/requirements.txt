@@ -13,7 +13,10 @@ deprecated==1.2.13
 flask==2.1.2
     # via
     #   -r requirements.in
+    #   flask-healthz
     #   prometheus-flask-exporter
+flask-healthz==0.0.3
+    # via -r requirements.in
 gunicorn==20.1.0
     # via -r requirements.in
 itsdangerous==2.1.2

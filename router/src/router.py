@@ -3,6 +3,7 @@
 """HTTP API handler for routing requests to KV store."""
 
 from flask import Flask, jsonify, make_response, request, Response
+from flask_healthz import Healthz, HealthError
 from http import HTTPStatus
 from prometheus_flask_exporter import PrometheusMetrics
 import logging
@@ -12,6 +13,7 @@ import redis
 import sys
 
 APP = Flask(__name__)
+Healthz(APP, no_log=True)
 METRICS = PrometheusMetrics(
         APP,
         group_by="endpoint",
@@ -34,7 +36,6 @@ REDIS_RW = redis.Redis(
         password=REDIS_PASSWORD,
         decode_responses=True,
 )
-LOG.info("redis rw host ping success: %s", REDIS_RW.ping())
 REDIS_RO_HOST = os.getenv("REDIS_RO_HOST", REDIS_RW_HOST)
 REDIS_RO_PORT = os.getenv("REDIS_RO_PORT", REDIS_RW_PORT)
 if REDIS_RO_HOST == REDIS_RW_HOST and REDIS_RO_PORT == REDIS_RW_PORT:
@@ -46,7 +47,33 @@ else:
             password=REDIS_PASSWORD,
             decode_responses=True,
     )
-    LOG.info("redis ro host ping success: %s", REDIS_RO.ping())
+
+
+def liveness():
+    try:
+        LOG.debug("live")
+    except Exception:
+        raise HealthError("can't log")
+
+
+def readiness():
+    try:
+        REDIS_RW.ping()
+    except Exception:
+        raise HealthError("can't ping redis rw")
+
+    try:
+        REDIS_RO.ping()
+    except Exception:
+        raise HealthError("can't ping redis ro")
+
+
+APP.config.update(
+    HEALTHZ = {
+        "live": APP.name + ".liveness",
+        "ready": APP.name + ".readiness",
+    },
+)
 
 VALID_CHARSET = re.compile("[a-z-0-9]+")
 
