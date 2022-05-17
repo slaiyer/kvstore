@@ -1,0 +1,4 @@
+- job_name: "router"
+  scrape_interval: 1s
+  static_configs:
+  - targets: ["router-service:80"]

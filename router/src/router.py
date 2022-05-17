@@ -27,26 +27,21 @@ logging.basicConfig(
 )
 LOG = logging.getLogger(__name__)
 
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-REDIS_RW_HOST = os.getenv("REDIS_RW_HOST", "localhost")
-REDIS_RW_PORT = os.getenv("REDIS_RW_PORT", "6379")
+REDIS_PASSWORD = os.getenv("redis-password")
+REDIS_RW_PORT = os.getenv("REDIS_MASTER_SERVICE_PORT", "6379")
 REDIS_RW = redis.Redis(
-        host=REDIS_RW_HOST,
+        host="redis-master",
         port=int(REDIS_RW_PORT),
         password=REDIS_PASSWORD,
         decode_responses=True,
 )
-REDIS_RO_HOST = os.getenv("REDIS_RO_HOST", REDIS_RW_HOST)
-REDIS_RO_PORT = os.getenv("REDIS_RO_PORT", REDIS_RW_PORT)
-if REDIS_RO_HOST == REDIS_RW_HOST and REDIS_RO_PORT == REDIS_RW_PORT:
-    REDIS_RO = REDIS_RW
-else:
-    REDIS_RO = redis.Redis(
-            host=REDIS_RO_HOST,
-            port=int(REDIS_RO_PORT),
-            password=REDIS_PASSWORD,
-            decode_responses=True,
-    )
+REDIS_RO_PORT = os.getenv("REDIS_REPLICAS_SERVICE_PORT", REDIS_RW_PORT)
+REDIS_RO = redis.Redis(
+        host="redis-replicas",
+        port=int(REDIS_RO_PORT),
+        password=REDIS_PASSWORD,
+        decode_responses=True,
+)
 
 
 def liveness():

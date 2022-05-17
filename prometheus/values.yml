@@ -1,0 +1,8 @@
+prometheus:
+  prometheusSpec:
+    retention: 1d
+    additionalScrapeConfigsSecret:
+      enabled: true
+      name: additional-scrape-configs
+      key: additional-scrape-configs.yml
+
