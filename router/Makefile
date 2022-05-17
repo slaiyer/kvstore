@@ -16,7 +16,7 @@ install:
 	# redis-cli
 
 build-docker:
-	docker build -t router .
+	docker build -t router:default .
 
 build-dummy: build-docker
 	cd dummy && docker build -t router:dummy .

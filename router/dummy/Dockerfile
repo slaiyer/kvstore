@@ -1,4 +1,4 @@
 # syntax=docker/dockerfile:1
 
-FROM router:latest
+FROM router:default
 RUN touch /dummy
