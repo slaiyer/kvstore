@@ -32,18 +32,6 @@ pyparsing==3.0.9
     # via packaging
 redis==4.3.1
     # via -r requirements.in
-types-click==7.1.8
-    # via types-flask
-types-flask==1.1.6
-    # via -r requirements.in
-types-jinja2==2.11.9
-    # via types-flask
-types-markupsafe==1.1.10
-    # via types-jinja2
-types-redis==4.2.3
-    # via -r requirements.in
-types-werkzeug==1.0.9
-    # via types-flask
 werkzeug==2.1.2
     # via flask
 wrapt==1.14.1

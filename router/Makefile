@@ -15,10 +15,20 @@ install:
 # promql
 	# redis-cli
 
+docker-build:
+	docker build -t router .
+
+local-redis-kvstore:
+	-docker network create -d bridge redisnet
+	-docker run --rm -d -p 6379:6379 --name redis --network redisnet redis
+
+local-router: local-redis-kvstore
+	docker run --rm -p 8000:8000 -e "REDIS_SERVICE_HOST=$(shell ${SHELL} local-ip.sh redis)" --name router --network redisnet router
+
 gunicorn-local:
 	cd src && . venv/bin/activate && gunicorn -b localhost:5000 router:APP
 
-test:
+local-test:
 	@$(MAKE) --no-print-directory kv-flush
 	@$(MAKE) --no-print-directory kv-load
 	@$(MAKE) --no-print-directory req-sample
@@ -34,16 +44,16 @@ kv-load:
 	redis-cli <test/pairs.txt
 
 req-sample:
-	curl -s 'localhost:5000/search?prefix=abc'
-	curl -s 'localhost:5000/search?suffix=-1'
-	curl -s 'localhost:5000/get/wat'
-	curl -s 'localhost:5000/set' -d 'key=wat&value=bruh'
-	curl -s 'localhost:5000/get/wat'
-	curl -s 'localhost:5000/set' -d 'key=wat&value=bruh'
-	curl -s 'localhost:5000/set' -d 'key=wat&value=bruh911'
-	curl -s 'localhost:5000/get/bruh'
-	curl -s 'localhost:5000/set' -d 'key=water&value=911'
-	curl -s 'localhost:5000/get/abc-2'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/search?prefix=abc'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/search?suffix=-1'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/get/wat'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/set' -d 'key=wat&value=bruh'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/get/wat'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/set' -d 'key=wat&value=bruh'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/set' -d 'key=wat&value=bruh911'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/get/bruh'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/set' -d 'key=water&value=911'
+	curl -s '$(ROUTER_HOST):$(ROUTER_PORT)/get/abc-2'
 
 prom-local-raw:
 	watch -d -x curl -s 'http://localhost:5000/metrics'
