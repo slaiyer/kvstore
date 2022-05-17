@@ -15,8 +15,11 @@ install:
 # promql
 	# redis-cli
 
-docker-build:
+build-docker:
 	docker build -t router .
+
+build-dummy: build-docker
+	cd dummy && docker build -t router:dummy .
 
 local-redis-kvstore:
 	-docker network create -d bridge redisnet
