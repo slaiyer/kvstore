@@ -24,24 +24,26 @@ set-context: kind-create
 create-ns: set-context
 	-kubectl create namespace $(NS)
 
-helm-redis: create-ns
-	helm repo add bitnami https://charts.bitnami.com/bitnami
-	#helm repo update
-	helm upgrade --install redis bitnami/redis -n $(NS)
+deploy-redis: create-ns helm-repos deploy-prom-stack
+	helm -n $(NS) upgrade --install redis bitnami/redis \
+		--values <(NS=$(NS) envsubst <redis/values.yml)
 
-deploy-router: create-ns helm-redis deploy-prom-stack
+deploy-router: create-ns deploy-redis deploy-prom-stack
 	make -C router build-dummy
 	make kind-load IMAGE='router:default router:dummy' CLUSTER=$(CLUSTER)
 	NS=$(NS) envsubst <router/k8s.yml | kubectl apply -f -
 
-deploy-prom-stack: add-scrape-configs
-	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-	#helm repo update
+deploy-prom-stack: create-ns helm-repos add-scrape-configs
 	helm -n $(NS) upgrade --install prom-stack prometheus-community/kube-prometheus-stack \
 		--set kubeStateMetrics.enabled=false --set nodeExporter.enabled=false --set alertmanager.enabled=false \
 		--values prometheus/values.yml
 	#grafana admin password: prom-operator
 
-add-scrape-configs:
+add-scrape-configs: create-ns
 	-kubectl -n $(NS) delete secret additional-scrape-configs
 	kubectl -n $(NS) create secret generic additional-scrape-configs --from-file=prometheus/additional-scrape-configs.yml
+
+helm-repos:
+	helm repo add bitnami https://charts.bitnami.com/bitnami
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	#helm repo update

@@ -175,20 +175,3 @@ def is_valid_string(input: str) -> bool:
 def json_response(msg: str, code: int) -> Response:
     """Wrapper for creating JSON response with status code."""
     return make_response(jsonify({"msg": msg}), code)
-
-
-def count_keys() -> int:
-    """Returns number of active keys reported by Redis master."""
-    keyspace_info = REDIS_RW.info("keyspace")
-    count = 0
-    for db, info in keyspace_info.items():
-        count += info["keys"] - info["expires"]
-    return count
-
-
-METRICS.register_default(
-    METRICS.gauge(
-        "num_keys_gauge", "Number of keys in Redis",
-        labels={"num_keys": count_keys}
-    ),
-)

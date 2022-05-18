@@ -1,0 +1,6 @@
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: ${NS}
+    interval: 1s

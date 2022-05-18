@@ -2,3 +2,7 @@
   scrape_interval: 1s
   static_configs:
   - targets: ["router-service:80"]
+- job_name: "redis"
+  scrape_interval: 1s
+  static_configs:
+  - targets: ["redis-metrics:9121"]
