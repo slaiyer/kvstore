@@ -29,7 +29,7 @@ helm-redis: create-ns
 	#helm repo update
 	helm upgrade --install redis bitnami/redis -n $(NS)
 
-deploy-router: create-ns helm-redis
+deploy-router: create-ns helm-redis deploy-prom-stack
 	make -C router build-dummy
 	make kind-load IMAGE='router:default router:dummy' CLUSTER=$(CLUSTER)
 	NS=$(NS) envsubst <router/k8s.yml | kubectl apply -f -
