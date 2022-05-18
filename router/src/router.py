@@ -2,41 +2,25 @@
 
 """HTTP API handler for routing requests to KV store."""
 
-from flask import Flask, jsonify, make_response, request, Response
-from flask_healthz import Healthz, HealthError
-from http import HTTPStatus
-from prometheus_flask_exporter import PrometheusMetrics
-import logging
 import os
-import re
-import redis
-import sys
 
-APP = Flask(__name__)
-Healthz(APP, no_log=True)
-METRICS = PrometheusMetrics(
-        APP,
-        group_by="endpoint",
-        default_latency_as_histogram=False,
-)
+from fastapi import FastAPI, Path, Query, Response, status
+from prometheus_fastapi_instrumentator import Instrumentator
+from pydantic import BaseModel, Field
+from redis import Redis
 
-logging.basicConfig(
-        stream=sys.stdout,
-        level=logging.INFO,
-        format="%(asctime)s - %(module)s - %(funcName)s - %(levelname)s - %(message)s",
-)
-LOG = logging.getLogger(__name__)
+APP = FastAPI()
 
 REDIS_PASSWORD = os.getenv("redis-password")
 REDIS_RW_PORT = os.getenv("REDIS_MASTER_SERVICE_PORT", "6379")
-REDIS_RW = redis.Redis(
+REDIS_RW = Redis(
         host="redis-master",
         port=int(REDIS_RW_PORT),
         password=REDIS_PASSWORD,
         decode_responses=True,
 )
 REDIS_RO_PORT = os.getenv("REDIS_REPLICAS_SERVICE_PORT", REDIS_RW_PORT)
-REDIS_RO = redis.Redis(
+REDIS_RO = Redis(
         host="redis-replicas",
         port=int(REDIS_RO_PORT),
         password=REDIS_PASSWORD,
@@ -44,134 +28,77 @@ REDIS_RO = redis.Redis(
 )
 
 
+@APP.get("/healthz/live")
 def liveness():
-    try:
-        LOG.debug("live")
-    except Exception:
-        raise HealthError("can't log")
+    return {"status": "OK"}
 
 
-def readiness():
-    try:
-        REDIS_RW.ping()
-    except Exception:
-        raise HealthError("can't ping redis rw")
+@APP.get("/healthz/ready")
+def readiness(response: Response):
+    if not ((redis_rw := REDIS_RW.ping()) and (redis_ro := REDIS_RO.ping())):
+        response.status_code = status.HTTP_502_BAD_GATEWAY
+        return {"status": f"reachable: redis-master={redis_rw}, redis-replica={redis_ro}"}
 
-    try:
-        REDIS_RO.ping()
-    except Exception:
-        raise HealthError("can't ping redis ro")
+    return {"status": "OK"}
 
-
-APP.config.update(
-    HEALTHZ = {
-        "live": APP.name + ".liveness",
-        "ready": APP.name + ".readiness",
-    },
-)
-
-VALID_CHARSET = re.compile("[a-z-0-9]+")
+VALID_CHARSET = "^[a-z-0-9]+$"
 
 
-@APP.route("/set", methods=["POST"])
-def set() -> Response:
+class KVPair(BaseModel):
+    key: str = Field(regex=VALID_CHARSET)
+    value: str = Field(regex=VALID_CHARSET)
+
+
+@APP.post("/set")
+def set(
+        response: Response,
+        kv_pair: KVPair,
+):
     """Handler for setting KV pair."""
-    key = request.form.get("key")
-    if key is None or not is_valid_string(key):
-        msg = f"invalid key {key!r}"
-        return json_response(msg, HTTPStatus.BAD_REQUEST)
+    if REDIS_RW.set(kv_pair.key, kv_pair.value, get=True) is None:
+        response.status_code = status.HTTP_201_CREATED
 
-    value = request.form.get("value")
-    if value is None or not is_valid_string(value):
-        msg = f"invalid value {value!r}"
-        return json_response(msg, HTTPStatus.BAD_REQUEST)
-
-    if (old_value := REDIS_RW.set(key, value, get=True)) is None:
-        action, code = 'created', HTTPStatus.CREATED
-    else:
-        action, code = 'updated', HTTPStatus.OK
-
-    msg = f"{action} key:value {key!r}:{value!r}"
-    return json_response(msg, code)
+    return {"msg": f"set {kv_pair.key!r}: {kv_pair.value!r}"}
 
 
-@APP.route("/get/<string:key>")
-def get(key: str) -> Response:
+@APP.get("/get/{key}")
+def get(
+        response: Response,
+        key: str = Path(regex=VALID_CHARSET),
+):
     """Handler for getting value for given key."""
-    if key is None or not is_valid_string(key):
-        msg = f"invalid key {key!r}"
-        return json_response(msg, HTTPStatus.BAD_REQUEST)
-    
     if (value := REDIS_RO.get(key)) is None:
-        msg = f"key not found {key!r}"
-        return json_response(msg, HTTPStatus.NOT_FOUND)
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"msg": f"key not found {key!r}"}
     else:
-        return make_response(jsonify({"value": value}), HTTPStatus.OK)
+        return {"value": value}
 
 
-@APP.route("/search")
-def search() -> Response:
+@APP.get("/search")
+def search(
+        response: Response,
+        prefix: str | None = Query(default=None, regex=VALID_CHARSET),
+        suffix: str | None = Query(default=None, regex=VALID_CHARSET),
+):
     """Handler for searching keys by prefix and/or suffix."""
-    prefix = request.args.get("prefix")
-    suffix = request.args.get("suffix")
-
-    # BEGIN INPUT VALIDATION
-
     if prefix is None and suffix is None:
-        return json_response("no search params", HTTPStatus.BAD_REQUEST)
-
-    msgs = []
-    do_prefix = False
-    do_suffix = False
-
-    if prefix is None:
-        pass
-    elif not is_valid_string(prefix):
-        msgs.append("invalid prefix")
-    else:
-        do_prefix = True
-
-    if suffix is None:
-        pass
-    elif not is_valid_string(suffix):
-        msgs.append("invalid suffix")
-    else:
-        do_suffix = True
-    
-    msg = ', '.join(msgs)
-    if not (do_prefix or do_suffix):
-        return json_response(msg, HTTPStatus.BAD_REQUEST)
-
-    # END INPUT VALIDATION
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"msg": "no search params"}
 
     results = {}
     pfx_list = []
     sfx_list = []
     for key in REDIS_RO.scan_iter():
-        if do_prefix and key.startswith(prefix):
+        if prefix and key.startswith(prefix):
             pfx_list.append(key)
-        if do_suffix and key.endswith(suffix):
+        if suffix and key.endswith(suffix):
             sfx_list.append(key)
-    if do_prefix:
+    if prefix:
         results["prefix"] = pfx_list
-    if do_suffix:
+    if suffix:
         results["suffix"] = sfx_list
 
-    response: dict[str, object] = {}
-    if msg:
-        response["msg"] = msg
-    response["results"] = results
-    return make_response(jsonify(response), HTTPStatus.OK)
-    
-
-def is_valid_string(input: str) -> bool:
-    """Helper for validating input against defined slug regex."""
-    result = bool(VALID_CHARSET.fullmatch(input))
-    if not result:
-        LOG.warning("invalid input %s", repr(input))
-    return result
+    return {"results": results}
 
 
-def json_response(msg: str, code: int) -> Response:
-    """Wrapper for creating JSON response with status code."""
-    return make_response(jsonify({"msg": msg}), code)
+Instrumentator().instrument(APP).expose(APP)

@@ -14,4 +14,4 @@ WORKDIR /opt/venv
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "router:APP"]
+CMD ["uvicorn", "router:APP", "--host", "0.0.0.0", "--port", "8000"]

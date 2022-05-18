@@ -1,5 +1,4 @@
-flask
-flask_healthz
-gunicorn
-prometheus-flask-exporter
+fastapi
+uvicorn
+prometheus-fastapi-instrumentator
 redis
