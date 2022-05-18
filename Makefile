@@ -26,7 +26,7 @@ create-ns: set-context
 
 deploy-redis: create-ns helm-repos deploy-prom-stack
 	helm -n $(NS) upgrade --install redis bitnami/redis \
-		--values <(NS=$(NS) envsubst <redis/values.yml)
+		--set metrics.enabled=true
 
 deploy-router: create-ns deploy-redis deploy-prom-stack
 	make -C router build-dummy
