@@ -35,7 +35,7 @@ Uses [kind](https://github.com/kubernetes-sigs/kind) to set up a local Kubernete
   - Concurrently initiates redeployment rollout with image variant having same functionality
   - `make view-fortio-reports`: launches local web UI for viewing load testing reports
 - `make forward-prometheus`: forwards Prometheus to local port
-  - Endpoint latency buckets: `sum(http_request_duration_seconds_bucket{handler!~"/(healthz|metrics).*"}) without(instance, job)`
-  - HTTP status codes from endpoints: `sum(http_requests_total{handler!~"/(healthz|metrics).*"}) without(instance, job)`
-  - Number of keys in DB: `sum(redis_db_keys{db="db0"}) without(instance, job)`
+  - Endpoint latency buckets: `sum(http_request_duration_seconds_bucket{handler!~"/(healthz|metrics).*"}) by(handler, le)`
+  - HTTP status codes from endpoints: `sum(http_requests_total{handler!~"/(healthz|metrics).*"}) by(handler, method, status)`
+  - Number of keys in DB: `sum(redis_db_keys{db="db0"}) by(db)`
 - `make teardown`: destroys cluster
