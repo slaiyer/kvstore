@@ -39,7 +39,6 @@ create-ns: set-context
 
 deploy-prom-stack: create-ns helm-repos add-scrape-configs
 	helm -n $(NS) upgrade --install prom-stack prometheus-community/kube-prometheus-stack \
-		--set kubeStateMetrics.enabled=false --set nodeExporter.enabled=false --set alertmanager.enabled=false \
 		--values prometheus/values.yml
 
 deploy-redis: create-ns helm-repos
@@ -80,7 +79,7 @@ view-fortio-reports:
 	fortio report -quiet -data-dir test/fortio -http-port localhost:8888
 
 fwd-prometheus:
-	kubectl port-forward -n kvstore pod/prometheus-prom-stack-kube-prometheus-prometheus-0 9000:9000
+	kubectl port-forward -n kvstore pod/prometheus-prom-stack-kube-prometheus-prometheus-0 9000:9000 &
 
 fwd-grafana:
-	kubectl port-forward -n kvstore pod/prometheus-prom-stack-kube-prometheus-prometheus-0 9000:9000 #admin password: prom-operator
+	kubectl port-forward -n kvstore pod/prometheus-prom-stack-kube-prometheus-prometheus-0 9000:9000 & #admin password: prom-operator
