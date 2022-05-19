@@ -57,6 +57,9 @@ build-docker:
 build-dummy:
 	$(MAKE) -C router build-dummy
 
+docker-prune:
+	docker system prune -a
+
 deploy-router: create-ns build-dummy
 	$(MAKE) kind-load IMAGE='router:default router:dummy' CLUSTER=$(CLUSTER)
 	NS=$(NS) envsubst <router/k8s.yml | kubectl apply -f -
