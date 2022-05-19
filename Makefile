@@ -1,11 +1,14 @@
 SHELL:=/usr/bin/env bash
 
-all: check-dep-req deploy-router deploy-redis deploy-prom-stack setup-ingress #check-dep-opt
+all: check-dep deploy-router deploy-redis deploy-prom-stack setup-ingress
 
-check-dep-req:
-	command -v kind kubectl docker helm envsubst curl inso redis-cli
+check-dep: check-dep-setup check-dep-test check-dep-build
+	command -v kind kubectl docker helm envsubst
 
-check-dep-opt:
+check-dep-test:
+	command -v curl inso fortio redis-cli
+
+check-dep-build:
 	command -v python3 pip-compile
 
 setup-ingress: deploy-router
@@ -60,3 +63,17 @@ helm-repos:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 	#helm repo update
+
+test-api: check-dep-test
+	inso --verbose --ci --src test/insomnia/requests.json run test -e kvstore kvstore-expected
+
+test-deploy-rollout: check-dep-test
+	mkdir -p test/fortio
+	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s -content-type 'application/json' -payload '{"key":"abc-1","value":"1"}' 'http://$(HOST):$(PORT)/set' &
+	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s 'http://$(HOST):$(PORT)/get/abc-1' &
+	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s 'http://$(HOST):$(PORT)/search?prefix=abc&suffix=-1' &
+	sleep 10
+	${SHELL} ./switch-router-tag.sh
+
+view-fortio-reports:
+	fortio report -quiet -data-dir test/fortio -http-port localhost:8888
