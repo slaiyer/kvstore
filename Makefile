@@ -6,7 +6,7 @@ check-dep: check-dep-setup check-dep-test check-dep-build
 	command -v kind kubectl docker helm envsubst
 
 check-dep-test:
-	command -v curl inso fortio redis-cli
+	command -v k9s curl inso fortio redis-cli
 
 check-dep-build:
 	command -v python3 pip-compile
