@@ -2,10 +2,10 @@
 
 HOST="${1:-localhost}"
 PORT="${2:-8080}"
-DATA_DIR="${3:-test/fortio}"
-NUM_CONN="${4:-10}"
-QPS="${5:-500}"
-DURATION="${6:-30s}"
+DURATION="${3:-1m}"
+QPS="${4:-500}"
+NUM_CONN="${5:-10}"
+DATA_DIR="${6:-test/fortio}"
 
 mkdir -p "${DATA_DIR}"
 fortio load -quiet -data-dir "${DATA_DIR}" -a -c "${NUM_CONN}" -qps "${QPS}" -t "${DURATION}" -content-type 'application/json' -payload '{"key":"abc-1","value":"1"}' "http://${HOST}:${PORT}/set" &
