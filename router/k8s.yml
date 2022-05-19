@@ -44,6 +44,13 @@ spec:
         - secretRef:
             name: redis
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 250m
+          limits:
+            memory: 64Mi
+            cpu: 300m
         startupProbe:
           httpGet:
             path: /healthz/live
