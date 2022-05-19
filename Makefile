@@ -68,10 +68,7 @@ test-api: check-dep-test
 	inso --verbose --ci --src test/insomnia/requests.json run test -e kvstore kvstore-expected
 
 test-deploy-rollout: check-dep-test test-api
-	mkdir -p test/fortio
-	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s -content-type 'application/json' -payload '{"key":"abc-1","value":"1"}' 'http://$(HOST):$(PORT)/set' &
-	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s 'http://$(HOST):$(PORT)/get/abc-1' &
-	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s 'http://$(HOST):$(PORT)/search?prefix=abc&suffix=-1' &
+	${SHELL} ./run-load-test.sh $(HOST) $(PORT)
 	sleep 10
 	${SHELL} ./switch-router-tag.sh
 
