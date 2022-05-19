@@ -3,13 +3,15 @@ SHELL:=/usr/bin/env bash
 all: check-dep deploy-router deploy-redis deploy-prom-stack setup-ingress
 
 check-dep: check-dep-setup check-dep-test check-dep-build
-	command -v kind kubectl docker helm envsubst
+
+check-dep-setup:
+	command -v kind kubectl helm envsubst
 
 check-dep-test:
 	command -v k9s curl inso fortio redis-cli
 
 check-dep-build:
-	command -v python3 pip-compile
+	command -v python3 pip-compile docker
 
 setup-ingress: deploy-router
 	kubectl apply -f ingress/ingress-nginx.yml
