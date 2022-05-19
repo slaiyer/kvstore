@@ -62,7 +62,7 @@ add-scrape-configs: create-ns
 helm-repos:
 	helm repo add bitnami https://charts.bitnami.com/bitnami
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-	#helm repo update
+	helm repo update
 
 test-api: check-dep-test
 	inso --verbose --ci --src test/insomnia/requests.json run test -e kvstore kvstore-expected
