@@ -46,28 +46,19 @@ spec:
         imagePullPolicy: IfNotPresent
         startupProbe:
           httpGet:
-            path: /healthz/ready
+            path: /healthz/live
             port: 8000
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          initialDelaySeconds: 0
+          periodSeconds: 2
           timeoutSeconds: 1
           successThreshold: 1
-          failureThreshold: 5
+          failureThreshold: 10
         readinessProbe:
           httpGet:
             path: /healthz/ready
             port: 8000
-          initialDelaySeconds: 10
+          initialDelaySeconds: 0
           periodSeconds: 10
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        livenessProbe:
-          httpGet:
-            path: /healthz/live
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 1
-          successThreshold: 1
-          failureThreshold: 3
