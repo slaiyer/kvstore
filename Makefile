@@ -1,11 +1,19 @@
 SHELL:=/usr/bin/env bash
 
+all: check-dep-req deploy-router deploy-redis deploy-prom-stack setup-ingress #check-dep-opt
+
+check-dep-req:
+	command -v kind kubectl docker helm envsubst curl inso redis-cli
+
+check-dep-opt:
+	command -v python3 pip-compile
+
 setup-ingress: deploy-router
 	kubectl apply -f ingress/ingress-nginx.yml
 	kubectl wait --namespace ingress-nginx \
 		--for=condition=ready pod \
 		--selector=app.kubernetes.io/component=controller \
-		--timeout=90s
+		--timeout=600s
 	NS=$(NS) envsubst <ingress/ingress.yml | kubectl apply -f -
 
 kind-create:
@@ -15,7 +23,7 @@ kind-create:
 kind-delete:
 	kind delete cluster --name $(CLUSTER)
 
-kind-load:
+kind-load: build-dummy
 	kind load docker-image $(IMAGE) --name $(CLUSTER)
 
 set-context: kind-create
@@ -24,20 +32,25 @@ set-context: kind-create
 create-ns: set-context
 	-kubectl create namespace $(NS)
 
-deploy-redis: create-ns helm-repos deploy-prom-stack
-	helm -n $(NS) upgrade --install redis bitnami/redis \
-		--set metrics.enabled=true
-
-deploy-router: create-ns deploy-redis deploy-prom-stack
-	make -C router build-dummy
-	make kind-load IMAGE='router:default router:dummy' CLUSTER=$(CLUSTER)
-	NS=$(NS) envsubst <router/k8s.yml | kubectl apply -f -
-
 deploy-prom-stack: create-ns helm-repos add-scrape-configs
 	helm -n $(NS) upgrade --install prom-stack prometheus-community/kube-prometheus-stack \
 		--set kubeStateMetrics.enabled=false --set nodeExporter.enabled=false --set alertmanager.enabled=false \
 		--values prometheus/values.yml
 	#grafana admin password: prom-operator
+
+deploy-redis: create-ns helm-repos
+	helm -n $(NS) upgrade --install redis bitnami/redis \
+		--set metrics.enabled=true
+
+build-docker:
+	$(MAKE) -C router build-docker
+
+build-dummy:
+	$(MAKE) -C router build-dummy
+
+deploy-router: create-ns build-dummy
+	$(MAKE) kind-load IMAGE='router:default router:dummy' CLUSTER=$(CLUSTER)
+	NS=$(NS) envsubst <router/k8s.yml | kubectl apply -f -
 
 add-scrape-configs: create-ns
 	-kubectl -n $(NS) delete secret additional-scrape-configs

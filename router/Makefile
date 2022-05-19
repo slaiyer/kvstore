@@ -1,19 +1,7 @@
 SHELL:=/usr/bin/env bash
 
-PYTHON=$(shell ./py_checker.sh 3.10 python3 python)
-ifeq (${PYTHON},)
-$(error No usable python binary found)
-endif
-
-.PHONY: test
-
 install:
 	${SHELL} dep-update.sh ${DIR}
-	# curl
-	# jq
-	# prometheus
-# promql
-	# redis-cli
 
 build-docker:
 	docker build -t router:default .
