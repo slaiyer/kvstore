@@ -67,7 +67,7 @@ helm-repos:
 test-api: check-dep-test
 	inso --verbose --ci --src test/insomnia/requests.json run test -e kvstore kvstore-expected
 
-test-deploy-rollout: check-dep-test
+test-deploy-rollout: check-dep-test test-api
 	mkdir -p test/fortio
 	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s -content-type 'application/json' -payload '{"key":"abc-1","value":"1"}' 'http://$(HOST):$(PORT)/set' &
 	fortio load -quiet -data-dir test/fortio -a -c 10 -qps 500 -t 30s 'http://$(HOST):$(PORT)/get/abc-1' &
