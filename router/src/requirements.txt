@@ -28,16 +28,12 @@ prometheus-client==0.14.1
     # via prometheus-fastapi-instrumentator
 prometheus-fastapi-instrumentator==5.8.1
     # via -r requirements.in
-pydantic==1.9.0
+pydantic==1.9.1
     # via fastapi
 pyparsing==3.0.9
     # via packaging
-python-multipart==0.0.5
-    # via -r requirements.in
 redis==4.3.1
     # via -r requirements.in
-six==1.16.0
-    # via python-multipart
 sniffio==1.2.0
     # via anyio
 starlette==0.19.1
